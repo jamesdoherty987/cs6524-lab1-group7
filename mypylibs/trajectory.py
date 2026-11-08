@@ -1,28 +1,31 @@
-
 import numpy as np
 
+
 def calculate(img, num_samples=500):
-
-    img = img > .5  # Ensure (very naively) the image is binary
-
+    img = img > 0.5
     edge_y, edge_x = np.where(img)
-    points = np.column_stack((edge_x, edge_y))
-    ordered_pts = [points[0]]
-    unvisited = list(points[1:])
-    while unvisited:
-        last_pt = ordered_pts[-1]
-        # Calculate Euclidean distances to remaining unvisited edge pixels
-        dists = np.sum((unvisited - last_pt)**2, axis=1)
-        nearest_idx = np.argmin(dists)
-        ordered_pts.append(unvisited.pop(nearest_idx))
-    ordered_pts = np.array(ordered_pts)
+    if len(edge_x) == 0:
+        raise ValueError("no edge pixels found")
 
-    distances = np.sqrt(np.sum(np.diff(ordered_pts, axis=0)**2, axis=1))
-    cumulative_dist = np.insert(np.cumsum(distances), 0, 0)
-    total_length = cumulative_dist[-1]
-    target_dists = np.linspace(0, total_length, num_samples, endpoint=False)
+    points = np.column_stack((edge_x, edge_y)).astype(float)
+    if len(points) > 2500:
+        idx = np.linspace(0, len(points) - 1, 2500).astype(int)
+        points = points[idx]
 
-    x_resampled = np.interp(target_dists, cumulative_dist, ordered_pts[:, 0]).astype(int)
-    y_resampled = np.interp(target_dists, cumulative_dist, ordered_pts[:, 1]).astype(int)
+    ordered = [points[0]]
+    leftover = points[1:].tolist()
+    while leftover:
+        last = ordered[-1]
+        dists = np.sum((np.asarray(leftover) - last) ** 2, axis=1)
+        j = int(np.argmin(dists))
+        ordered.append(leftover.pop(j))
+    ordered = np.asarray(ordered)
 
-    return x_resampled, y_resampled
+    seg = np.sqrt(np.sum(np.diff(ordered, axis=0) ** 2, axis=1))
+    cum = np.insert(np.cumsum(seg), 0, 0.0)
+    if cum[-1] == 0:
+        raise ValueError("degenerate contour")
+    targets = np.linspace(0, cum[-1], num_samples, endpoint=False)
+    x = np.interp(targets, cum, ordered[:, 0])
+    y = np.interp(targets, cum, ordered[:, 1])
+    return x, y

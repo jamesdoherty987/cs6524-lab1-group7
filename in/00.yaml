@@ -1,0 +1,5 @@
+blur_size: 7
+blur_sigma: 2.0
+threshold: 0.72
+invert: false
+num_samples: 400
